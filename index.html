@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- スマホ拡大防止：maximum-scale / user-scalable=no を追加 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>ぷよぷよ風パズル（HTML/JSのみ）</title>
 <meta name="robots" content="noindex,nofollow" />
 <style>
@@ -64,6 +65,12 @@
   .gameover .row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap;}
   .hint{font-size:12px; color:var(--muted); margin-top:8px}
   .link{color:var(--acc); text-decoration:none}
+
+  /* === 追加：ダブルタップ/ピンチの誤作動を抑える === */
+  canvas#board,
+  .mobilePad .pad button {
+    touch-action: manipulation;
+  }
 </style>
 </head>
 <body>
@@ -428,8 +435,11 @@
   // ===== 描画 =====
   function draw(highlightSet=null, highlightAlpha=1){
     // 背景
+    const ctx = boardCanvas.getContext('2d');
     ctx.clearRect(0,0,boardCanvas.width,boardCanvas.height);
     ctx.save();
+    const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell'));
+
     // フィールドグリッド
     for (let y=0;y<ROWS;y++){
       for (let x=0;x<COLS;x++){
@@ -462,6 +472,8 @@
   }
 
   function drawPuyo(cx,cy,color,alpha=1.0,active=false){
+    const ctx = boardCanvas.getContext('2d');
+    const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell'));
     const x = cx*CELL, y=cy*CELL;
     const r = CELL*0.44;
     ctx.save();
@@ -485,6 +497,7 @@
   }
 
   function drawNext(){
+    const nctx = nextCanvas.getContext('2d');
     const w = nextCanvas.width, h = nextCanvas.height;
     nctx.clearRect(0,0,w,h);
     // 2個を縦並び表示
@@ -508,11 +521,12 @@
   }
 
   function showChainPop(n){
-    popEl.textContent = n>=2 ? `${n} 連鎖！` : 'CLEAR!';
-    popEl.classList.remove('show');
-    void popEl.offsetWidth; // reflow
-    popEl.classList.add('show');
-    setTimeout(()=> popEl.classList.remove('show'), 800);
+    const el = document.getElementById('chainPop');
+    el.textContent = n>=2 ? `${n} 連鎖！` : 'CLEAR!';
+    el.classList.remove('show');
+    void el.offsetWidth; // reflow
+    el.classList.add('show');
+    setTimeout(()=> el.classList.remove('show'), 800);
   }
 
   // ===== ループ =====
@@ -596,6 +610,22 @@
   window.addEventListener('resize', ()=> {
     // キャンバスはCSSスケールのみ。論理ピクセルは固定でOK。
     draw();
+  });
+
+  // ===== 追加：スマホ拡大防止 =====
+  // ダブルタップ拡大対策（iOS Safari 含む）
+  let __lastTouchEnd = 0;
+  document.addEventListener('touchend', function (e) {
+    const now = Date.now();
+    if (now - __lastTouchEnd <= 300) {
+      e.preventDefault(); // ダブルタップによるズームを抑止
+    }
+    __lastTouchEnd = now;
+  }, { passive: false });
+
+  // ピンチズーム抑止（iOS Safari のみ有効）
+  document.addEventListener('gesturestart', function (e) {
+    e.preventDefault();
   });
 })();
 </script>
